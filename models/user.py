@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, JSON, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime, timedelta
 import enum
@@ -75,23 +75,6 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships - Fix the foreign key specification
-    managed_clients = relationship(
-        "Client", 
-        foreign_keys="Client.assigned_user_id",
-        back_populates="assigned_user"
-    )
-    created_tasks = relationship(
-        "Task", 
-        foreign_keys="Task.created_by_user_id",
-        back_populates="created_by_user"
-    )
-    audit_logs = relationship(
-        "AuditLog", 
-        foreign_keys="AuditLog.user_id",
-        back_populates="user"
-    )
-    
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', role='{self.role}')>"
     
@@ -133,31 +116,6 @@ class User(Base):
         if self.status == UserStatus.LOCKED.value:
             self.status = UserStatus.ACTIVE.value
     
-    def generate_mfa_secret(self) -> str:
-        """Generate new MFA secret"""
-        self.mfa_secret = secrets.token_hex(16)
-        return self.mfa_secret
-    
-    def generate_backup_codes(self) -> list:
-        """Generate MFA backup codes"""
-        codes = [secrets.token_hex(4) for _ in range(10)]
-        # Hash the codes before storing
-        hashed_codes = [hashlib.sha256(code.encode()).hexdigest() for code in codes]
-        self.mfa_backup_codes = hashed_codes
-        return codes  # Return unhashed codes for user to save
-    
-    def verify_backup_code(self, code: str) -> bool:
-        """Verify MFA backup code"""
-        if not self.mfa_backup_codes:
-            return False
-        
-        code_hash = hashlib.sha256(code.encode()).hexdigest()
-        if code_hash in self.mfa_backup_codes:
-            # Remove used backup code
-            self.mfa_backup_codes.remove(code_hash)
-            return True
-        return False
-    
     def has_permission(self, permission: str) -> bool:
         """Check if user has specific permission"""
         role_permissions = {
@@ -187,17 +145,6 @@ class User(Base):
         
         user_permissions = role_permissions.get(self.role, [])
         return permission in user_permissions
-    
-    def can_manage_client(self, client_id: int) -> bool:
-        """Check if user can manage specific client"""
-        if self.role == UserRole.ADMIN.value:
-            return True
-        
-        # Technicians can manage their assigned clients
-        if self.role == UserRole.TECHNICIAN.value:
-            return any(client.id == client_id for client in self.managed_clients)
-        
-        return False
     
     def get_vpn_config(self) -> str:
         """Generate WireGuard VPN configuration"""
