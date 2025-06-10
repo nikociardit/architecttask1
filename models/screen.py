@@ -79,8 +79,8 @@ class ScreenRecording(Base):
     expires_at = Column(DateTime)
     auto_delete = Column(Boolean, default=True)
     
-    # Metadata
-    metadata = Column(JSON)  # Additional recording metadata
+    # Screen metadata
+    screen_metadata = Column(JSON)  # Additional recording metadata (renamed from metadata)
     error_message = Column(Text)
     
     # Timestamps

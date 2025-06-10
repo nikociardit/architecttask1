@@ -90,7 +90,7 @@ class Client(Base):
     # Configuration and Policies
     policies = Column(JSON)  # Applied policies
     configuration = Column(JSON)  # Client configuration
-    metadata = Column(JSON)  # Additional metadata
+    client_metadata = Column(JSON)  # Additional metadata (renamed from metadata)
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
