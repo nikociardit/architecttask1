@@ -109,8 +109,16 @@ class AuditLog(Base):
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
     
     # Relationships
-    user = relationship("User", back_populates="audit_logs")
-    client = relationship("Client", back_populates="audit_logs")
+    user = relationship(
+        "User", 
+        foreign_keys=[user_id],
+        back_populates="audit_logs"
+    )
+    client = relationship(
+        "Client", 
+        foreign_keys=[client_id],
+        back_populates="audit_logs"
+    )
     
     def __repr__(self):
         return f"<AuditLog(id={self.id}, action='{self.action}', timestamp='{self.timestamp}')>"
