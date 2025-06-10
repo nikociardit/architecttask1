@@ -5,11 +5,14 @@ from contextlib import asynccontextmanager
 import uvicorn
 import logging
 from pathlib import Path
+import sys
+import os
+
+# Add current directory to Python path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from config.database import engine, Base, get_db
 from config.settings import settings
-from routers import auth, users, clients, tasks, vpn, screen, audit
-from utils.exceptions import setup_exception_handlers
 
 # Setup logging
 logging.basicConfig(
@@ -29,8 +32,11 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Windows Endpoint Management System Backend")
     
     # Create database tables
-    Base.metadata.create_all(bind=engine)
-    logger.info("Database tables created")
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created")
+    except Exception as e:
+        logger.error(f"Failed to create database tables: {e}")
     
     # Create default admin user if not exists
     try:
@@ -66,16 +72,25 @@ app.add_middleware(
 )
 
 # Setup exception handlers
+from utils.exceptions import setup_exception_handlers
 setup_exception_handlers(app)
 
-# Include routers
-app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(users.router, prefix="/api/users", tags=["User Management"])
-app.include_router(clients.router, prefix="/api/clients", tags=["Client Management"])
-app.include_router(tasks.router, prefix="/api/tasks", tags=["Task Execution"])
-app.include_router(vpn.router, prefix="/api/vpn", tags=["VPN Management"])
-app.include_router(screen.router, prefix="/api/screen", tags=["Screen Management"])
-app.include_router(audit.router, prefix="/api/audit", tags=["Audit Logs"])
+# Import and include routers after app creation
+try:
+    from routers import auth, users, clients, tasks, vpn, screen, audit
+    
+    app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+    app.include_router(users.router, prefix="/api/users", tags=["User Management"])
+    app.include_router(clients.router, prefix="/api/clients", tags=["Client Management"])
+    app.include_router(tasks.router, prefix="/api/tasks", tags=["Task Execution"])
+    app.include_router(vpn.router, prefix="/api/vpn", tags=["VPN Management"])
+    app.include_router(screen.router, prefix="/api/screen", tags=["Screen Management"])
+    app.include_router(audit.router, prefix="/api/audit", tags=["Audit Logs"])
+    
+except Exception as e:
+    logger.error(f"Failed to import routers: {e}")
+    # Create minimal app without routers for debugging
+    pass
 
 @app.get("/")
 async def root():
