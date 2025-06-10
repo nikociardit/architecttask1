@@ -1,59 +1,29 @@
-# FastAPI and ASGI server
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
+# Core FastAPI (use latest versions that work with Python 3.13)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
 
 # Database
-sqlalchemy==2.0.23
-sqlite3
+sqlalchemy>=2.0.0
+
+# Pydantic v2 (use latest to avoid compilation issues)
+pydantic[email]>=2.0.0
+pydantic-settings>=2.0.0
 
 # Authentication & Security
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-python-multipart==0.0.6
-bcrypt==4.1.2
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+bcrypt
 
-# HTTP client for external API calls
-httpx==0.25.2
-requests==2.31.0
+# HTTP clients
+httpx
+requests
 
-# Data validation and serialization
-pydantic==2.5.0
-pydantic-settings==2.1.0
+# Utilities
+python-dateutil
+python-dotenv
+websockets
 
-# Date and time handling
-python-dateutil==2.8.2
-
-# Logging and monitoring
-structlog==23.2.0
-
-# Active Directory integration
-ldap3==2.9.1
-
-# VPN configuration (WireGuard)
-wireguard-tools==0.2.0
-
-# WebSocket support for real-time features
-websockets==12.0
-
-# File handling and compression
-zipfile36==0.1.3
-
-# Environment variables
-python-dotenv==1.0.0
-
-# Background tasks
-celery==5.3.4
-redis==5.0.1
-
-# Image processing for screen capture
-pillow==10.1.0
-
-# Video processing for screen recording
-opencv-python==4.8.1.78
-
-# Development dependencies
-pytest==7.4.3
-pytest-asyncio==0.21.1
-black==23.11.0
-flake8==6.1.0
-mypy==1.7.1
+# Optional packages (install only if available)
+pyotp
+ldap3
