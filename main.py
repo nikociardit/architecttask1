@@ -40,9 +40,48 @@ async def lifespan(app: FastAPI):
     
     # Create default admin user if not exists
     try:
-        from services.user_service import create_default_admin
-        await create_default_admin()
-        logger.info("Default admin user checked/created")
+        # Simple admin creation function
+        def create_default_admin():
+            from models.user import User
+            from config.security import security
+            
+            db = next(get_db())
+            try:
+                # Check if admin exists
+                existing_admin = db.query(User).filter(User.username == "admin").first()
+                if existing_admin:
+                    logger.info("Default admin user already exists")
+                    return
+                
+                # Create admin user
+                admin_user = User(
+                    username="admin",
+                    email="admin@localhost", 
+                    full_name="System Administrator",
+                    role="admin",  # Direct string value
+                    status="active",  # Direct string value
+                    is_active=True,
+                    vpn_enabled=True,
+                    vpn_ip_address="10.0.0.1"
+                )
+                
+                # Set password
+                admin_user.password_hash = security.get_password_hash("ChangeMe123!")
+                
+                # Add to database
+                db.add(admin_user)
+                db.commit()
+                
+                logger.info("[OK] Default admin user created: admin / ChangeMe123!")
+                
+            except Exception as e:
+                db.rollback()
+                logger.error(f"[ERROR] Failed to create admin user: {e}")
+            finally:
+                db.close()
+        
+        create_default_admin()
+        
     except Exception as e:
         logger.error(f"Failed to create default admin: {e}")
     
