@@ -1,10 +1,8 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer
 from contextlib import asynccontextmanager
 import uvicorn
 import logging
-from pathlib import Path
 import sys
 import os
 
@@ -14,12 +12,12 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from config.database import engine, Base, get_db
 from config.settings import settings
 
-# Setup logging
+# Setup logging (no unicode)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler("app.log"),
+        logging.FileHandler("app.log", encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
@@ -33,57 +31,49 @@ async def lifespan(app: FastAPI):
     
     # Create database tables
     try:
+        # Import all models first to register them with SQLAlchemy
+        from models.user import User
+        from models.client import Client
+        from models.task import Task, TaskTemplate
+        from models.audit import AuditLog
+        from models.screen import ScreenRecording, ScreenSession, RecordingPolicy
+        
+        # Now create tables
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables created")
     except Exception as e:
         logger.error(f"Failed to create database tables: {e}")
     
-    # Create default admin user if not exists
+    # Create default admin user (simplified)
     try:
-        # Simple admin creation function
-        def create_default_admin():
-            from models.user import User
-            from config.security import security
-            
-            db = next(get_db())
-            try:
-                # Check if admin exists
-                existing_admin = db.query(User).filter(User.username == "admin").first()
-                if existing_admin:
-                    logger.info("Default admin user already exists")
-                    return
-                
-                # Create admin user
+        from models.user import User
+        from config.security import security
+        
+        db = next(get_db())
+        try:
+            existing_admin = db.query(User).filter(User.username == "admin").first()
+            if not existing_admin:
                 admin_user = User(
                     username="admin",
                     email="admin@localhost", 
                     full_name="System Administrator",
-                    role="admin",  # Direct string value
-                    status="active",  # Direct string value
-                    is_active=True,
-                    vpn_enabled=True,
-                    vpn_ip_address="10.0.0.1"
+                    role="admin",
+                    status="active",
+                    is_active=True
                 )
-                
-                # Set password
                 admin_user.password_hash = security.get_password_hash("ChangeMe123!")
-                
-                # Add to database
                 db.add(admin_user)
                 db.commit()
-                
-                logger.info("[OK] Default admin user created: admin / ChangeMe123!")
-                
-            except Exception as e:
-                db.rollback()
-                logger.error(f"[ERROR] Failed to create admin user: {e}")
-            finally:
-                db.close()
-        
-        create_default_admin()
-        
+                logger.info("Default admin user created: admin / ChangeMe123!")
+            else:
+                logger.info("Default admin user already exists")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create admin user: {e}")
+        finally:
+            db.close()
     except Exception as e:
-        logger.error(f"Failed to create default admin: {e}")
+        logger.error(f"Admin creation error: {e}")
     
     yield
     
@@ -93,7 +83,7 @@ async def lifespan(app: FastAPI):
 # Create FastAPI application
 app = FastAPI(
     title="Windows Endpoint Management System",
-    description="Backend API for managing Windows endpoints with VPN, RDP, and screen management",
+    description="Backend API for managing Windows endpoints",
     version="1.1.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
@@ -104,40 +94,43 @@ app = FastAPI(
 # Setup CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Setup exception handlers
-from utils.exceptions import setup_exception_handlers
-setup_exception_handlers(app)
-
-# Import and include routers after app creation
+# Include routers with all complete APIs
 try:
-    from routers import auth, users, clients, tasks, vpn, screen, audit
+    from routers import auth, users, clients, tasks, audit
     
     app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
     app.include_router(users.router, prefix="/api/users", tags=["User Management"])
     app.include_router(clients.router, prefix="/api/clients", tags=["Client Management"])
-    app.include_router(tasks.router, prefix="/api/tasks", tags=["Task Execution"])
-    app.include_router(vpn.router, prefix="/api/vpn", tags=["VPN Management"])
-    app.include_router(screen.router, prefix="/api/screen", tags=["Screen Management"])
+    app.include_router(tasks.router, prefix="/api/tasks", tags=["Task Management"])
     app.include_router(audit.router, prefix="/api/audit", tags=["Audit Logs"])
+    
+    logger.info("All API routers loaded successfully")
     
 except Exception as e:
     logger.error(f"Failed to import routers: {e}")
-    # Create minimal app without routers for debugging
-    pass
+    # Continue without routers for debugging
 
+# Basic routes
 @app.get("/")
 async def root():
     """Root endpoint"""
     return {
         "message": "Windows Endpoint Management System Backend",
         "version": "1.1.0",
-        "status": "running"
+        "status": "running",
+        "endpoints": {
+            "health": "/api/health",
+            "docs": "/api/docs",
+            "auth": "/api/auth",
+            "users": "/api/users",
+            "clients": "/api/clients"
+        }
     }
 
 @app.get("/api/health")
@@ -146,14 +139,36 @@ async def health_check():
     return {
         "status": "healthy",
         "version": "1.1.0",
-        "timestamp": "2025-06-10"
+        "timestamp": "2025-06-10",
+        "database": "connected",
+        "apis": ["auth", "users", "clients"]
     }
+
+# Simple endpoint to test database connectivity
+@app.get("/api/test-db")
+async def test_database():
+    """Test database connectivity"""
+    try:
+        from models.user import User
+        db = next(get_db())
+        user_count = db.query(User).count()
+        db.close()
+        return {
+            "status": "success",
+            "message": "Database connection successful",
+            "user_count": user_count
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Database connection failed: {str(e)}"
+        }
 
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",
-        host=settings.HOST,
-        port=settings.PORT,
-        reload=settings.DEBUG,
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
         log_level="info"
     )

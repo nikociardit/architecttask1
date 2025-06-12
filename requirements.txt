@@ -23,6 +23,7 @@ requests
 python-dateutil
 python-dotenv
 websockets
+qrcode
 
 # Optional packages (install only if available)
 pyotp
