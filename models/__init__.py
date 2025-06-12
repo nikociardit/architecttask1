@@ -1,10 +1,9 @@
 # models/__init__.py
-"""Database models module"""
+"""Database models module - completely clean version"""
 
-# Import Base first
 from config.database import Base
 
-# Import models in correct order (dependencies first)
+# Import all models
 from .user import User, UserRole, UserStatus
 from .client import Client, ClientStatus, ClientType  
 from .audit import AuditLog, AuditAction, AuditSeverity
