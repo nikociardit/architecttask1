@@ -1,5 +1,17 @@
 # routers/__init__.py
-"""API routers module"""
+"""API routers module - all complete backend endpoints"""
 
-# This file can be empty or contain router imports
-# The imports are handled in main.py to avoid circular dependencies
+# Import all routers to make them available
+from . import auth
+from . import users  
+from . import clients
+from . import tasks
+from . import audit
+
+__all__ = [
+    "auth",
+    "users", 
+    "clients",
+    "tasks",
+    "audit"
+]
